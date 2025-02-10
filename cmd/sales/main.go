@@ -5,8 +5,10 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
+	"syscall"
 )
 
 var build = "development"
@@ -25,6 +27,9 @@ func run(logger *slog.Logger) error {
 	// GOMAXPROCS
 	logger.Info("startup", "GOMAXPROCS", runtime.GOMAXPROCS(0))
 
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	<-shutdown
 	return nil
 }
 
