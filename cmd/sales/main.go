@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"errors"
+	"expvar"
 	"fmt"
 	"io"
 	"log/slog"
@@ -56,6 +58,8 @@ func run(logger *slog.Logger) error {
 	// GOMAXPROCS
 	logger.Info("startup", "GOMAXPROCS", runtime.GOMAXPROCS(0))
 
+	expvar.NewString("build").Set(build)
+
 	confString, err := conf.String(&cfg)
 	if err != nil {
 		return fmt.Errorf("string: %w", err)
@@ -73,9 +77,40 @@ func run(logger *slog.Logger) error {
 		}
 	}()
 
+	//==========================================================================
+	// API server
 	shutdown := make(chan os.Signal, 1)
+	errCh := make(chan error, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	<-shutdown
+
+	server := &http.Server{
+		Addr:        cfg.Web.APIHost,
+		Handler:     http.TimeoutHandler(nil, cfg.Web.WriteTimeout, "time out"),
+		ReadTimeout: cfg.Web.ReadTimeout,
+		IdleTimeout: cfg.Web.IdleTimeout,
+		ErrorLog:    slog.NewLogLogger(logger.Handler(), slog.LevelError),
+	}
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errCh <- err
+		}
+	}()
+
+	select {
+	case err := <-errCh:
+		return fmt.Errorf("listen and serve: %w", err)
+	case sig := <-shutdown:
+		logger.Info("shutdown", "status", "shutting down", "signal", sig.String())
+		defer logger.Info("shutdown", "status", "shutdown complete")
+
+		ctx, cancel := context.WithTimeout(context.Background(), cfg.Web.ShutdownTimeout)
+		defer cancel()
+
+		if err := server.Shutdown(ctx); err != nil {
+			server.Close()
+			return fmt.Errorf("shutdown gracefully failed: %w", err)
+		}
+	}
 	return nil
 }
 
