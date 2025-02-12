@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ardanlabs/conf/v3"
+	"github.com/hamidoujand/sales/internal/debug"
 )
 
 var build = "development"
@@ -27,9 +29,6 @@ func main() {
 }
 
 func run(logger *slog.Logger) error {
-	//==========================================================================
-	// GOMAXPROCS
-	logger.Info("startup", "GOMAXPROCS", runtime.GOMAXPROCS(0))
 
 	//==========================================================================
 	// Config
@@ -40,6 +39,7 @@ func run(logger *slog.Logger) error {
 			ShutdownTimeout time.Duration `conf:"default:20s"`
 			WriteTimeout    time.Duration `conf:"default:10s"`
 			APIHost         string        `conf:"default:0.0.0.0:8000"`
+			DebugHost       string        `conf:"default:0.0.0.0:3000"`
 		}
 	}{}
 
@@ -52,12 +52,26 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("parse config: %w", err)
 	}
 
+	//==========================================================================
+	// GOMAXPROCS
+	logger.Info("startup", "GOMAXPROCS", runtime.GOMAXPROCS(0))
+
 	confString, err := conf.String(&cfg)
 	if err != nil {
 		return fmt.Errorf("string: %w", err)
 	}
 
 	logger.Info("startup", "configuration", confString)
+
+	//==========================================================================
+	// Debug Server
+	go func() {
+		logger.Info("debug server", "status", "running", "host", cfg.Web.DebugHost)
+		if err := http.ListenAndServe(cfg.Web.DebugHost, debug.Mux()); err != nil {
+			logger.Error("debug server", "status", "failed", "err", err)
+			return
+		}
+	}()
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)

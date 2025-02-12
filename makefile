@@ -6,6 +6,9 @@ run-dev:
 
 build: sales
 
+help: 
+	go run cmd/sales/main.go --help
+
 tidy:
 	go mod tidy 
 	go mod vendor
