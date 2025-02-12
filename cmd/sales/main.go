@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -9,6 +10,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"syscall"
+	"time"
+
+	"github.com/ardanlabs/conf/v3"
 )
 
 var build = "development"
@@ -26,6 +30,34 @@ func run(logger *slog.Logger) error {
 	//==========================================================================
 	// GOMAXPROCS
 	logger.Info("startup", "GOMAXPROCS", runtime.GOMAXPROCS(0))
+
+	//==========================================================================
+	// Config
+	cfg := struct {
+		Web struct {
+			ReadTimeout     time.Duration `conf:"default:5s"`   //TODO: needs load testing for actual value.
+			IdleTimeout     time.Duration `conf:"default:120s"` //TODO: needs load testing for actual value.
+			ShutdownTimeout time.Duration `conf:"default:20s"`
+			WriteTimeout    time.Duration `conf:"default:10s"`
+			APIHost         string        `conf:"default:0.0.0.0:8000"`
+		}
+	}{}
+
+	help, err := conf.Parse("SALES", &cfg)
+	if err != nil {
+		if errors.Is(err, conf.ErrHelpWanted) {
+			fmt.Println(help)
+			return nil
+		}
+		return fmt.Errorf("parse config: %w", err)
+	}
+
+	confString, err := conf.String(&cfg)
+	if err != nil {
+		return fmt.Errorf("string: %w", err)
+	}
+
+	logger.Info("startup", "configuration", confString)
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)

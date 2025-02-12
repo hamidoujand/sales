@@ -6,6 +6,10 @@ run-dev:
 
 build: sales
 
+tidy:
+	go mod tidy 
+	go mod vendor
+
 sales:
 	docker build \
 	-f infra/docker/sales.dockerfile \
