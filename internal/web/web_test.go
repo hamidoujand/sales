@@ -2,6 +2,8 @@ package web_test
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -95,5 +97,38 @@ func handler(t *testing.T) web.HandlerFunc {
 		}
 		w.WriteHeader(statusCode)
 		return nil
+	}
+}
+
+func TestRespond(t *testing.T) {
+	w := httptest.NewRecorder()
+	ctx := context.Background()
+	msg := "hello world!"
+	data := map[string]string{
+		"msg": msg,
+	}
+	statusCode := http.StatusOK
+
+	if err := web.Respond(ctx, w, statusCode, data); err != nil {
+		t.Fatalf("failed to respond: %s", err)
+	}
+
+	if w.Result().StatusCode != statusCode {
+		t.Errorf("status=%d, got %d", w.Result().StatusCode, statusCode)
+	}
+
+	var result map[string]string
+	bs, err := io.ReadAll(w.Body)
+	if err != nil {
+		t.Fatalf("failed to read all response body: %s", err)
+	}
+
+	if err := json.Unmarshal(bs, &result); err != nil {
+		t.Fatalf("failed to unmarshal data: %s", err)
+	}
+
+	received := result["msg"]
+	if msg != received {
+		t.Fatalf("msg=%s, got %s", msg, received)
 	}
 }
