@@ -6,6 +6,13 @@ run-dev:
 
 build: sales
 
+
+load:
+	hey -m GET -c 100 -n 1000 "http://localhost:8000/v1/test"
+
+metrics:
+	expvarmon -ports="localhost:3000" -vars="build,requests,goroutines,errors,panics,mem:memstats.HeapAlloc,mem:memstats.HeapSys,mem:memstats.Sys"
+
 help: 
 	go run cmd/sales/main.go --help
 

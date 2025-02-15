@@ -6,6 +6,7 @@ import (
 	"runtime/debug"
 
 	"github.com/hamidoujand/sales/internal/errs"
+	"github.com/hamidoujand/sales/internal/metrics"
 	"github.com/hamidoujand/sales/internal/web"
 )
 
@@ -17,6 +18,8 @@ func Panic() web.Middleware {
 					//create a new trusted error from it
 					trace := string(debug.Stack())
 					err = errs.Newf(http.StatusInternalServerError, "PANIC[%v] TRACE[%s]", rc, trace)
+
+					metrics.AddPanic(ctx)
 				}
 			}()
 

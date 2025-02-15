@@ -15,6 +15,7 @@ func APIMux(logger *slog.Logger) *web.Router {
 	mux := web.NewRouter(logger,
 		mid.Logger(logger),
 		mid.Error(logger),
+		mid.Metrics(),
 		mid.Panic(),
 	)
 
