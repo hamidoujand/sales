@@ -15,6 +15,8 @@ func Respond(ctx context.Context, w http.ResponseWriter, statusCode int, data an
 		}
 	}
 
+	setStatusCode(ctx, statusCode)
+
 	//no content
 	if statusCode == http.StatusNoContent {
 		//just write the header

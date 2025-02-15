@@ -32,6 +32,7 @@ func (r *Router) HandleFunc(method string, version string, path string, handlerF
 		//we call our own custom handler.
 
 		ctx := req.Context()
+		ctx = setRequestData(ctx)
 		if err := handler(ctx, w, req); err != nil {
 			//with proper error handler middleware, we should not get an error in here
 			//if it did, we just log it.

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ardanlabs/conf/v3"
+	"github.com/hamidoujand/sales/api/handlers"
 	"github.com/hamidoujand/sales/internal/debug"
 )
 
@@ -83,14 +84,17 @@ func run(logger *slog.Logger) error {
 	errCh := make(chan error, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
+	mux := handlers.APIMux(logger)
+
 	server := &http.Server{
 		Addr:        cfg.Web.APIHost,
-		Handler:     http.TimeoutHandler(nil, cfg.Web.WriteTimeout, "time out"),
+		Handler:     http.TimeoutHandler(mux, cfg.Web.WriteTimeout, "time out"),
 		ReadTimeout: cfg.Web.ReadTimeout,
 		IdleTimeout: cfg.Web.IdleTimeout,
 		ErrorLog:    slog.NewLogLogger(logger.Handler(), slog.LevelError),
 	}
 	go func() {
+		logger.Info("server started", "host", cfg.Web.APIHost)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errCh <- err
 		}
