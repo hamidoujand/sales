@@ -20,6 +20,11 @@ tidy:
 	go mod tidy 
 	go mod vendor
 
+key-gen:
+	go run cmd/admin/main.go genkey -size=2048
+
+################################################################################
+
 sales:
 	docker build \
 	-f infra/docker/sales.dockerfile \
