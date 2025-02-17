@@ -1,6 +1,9 @@
 # github.com/ardanlabs/conf/v3 v3.4.0
 ## explicit; go 1.18
 github.com/ardanlabs/conf/v3
+# github.com/golang-jwt/jwt/v5 v5.2.1
+## explicit; go 1.18
+github.com/golang-jwt/jwt/v5
 # github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid

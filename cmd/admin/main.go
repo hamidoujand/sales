@@ -12,8 +12,9 @@ import (
 func main() {
 	if err := run(); err != nil {
 		fmt.Println("admin <subcommand> [...args]")
-		fmt.Println("=====================================================")
+		fmt.Println("==========================SubCommands===========================")
 		fmt.Println("genkey: generate a set of private/public key files.")
+		fmt.Println("gentoken: generate a JWT token for userid using a key.")
 		fmt.Println("=====================================================")
 		fmt.Println(err)
 		os.Exit(1)
@@ -34,6 +35,24 @@ func run() error {
 		if err := commands.GenerateKey(*keySize); err != nil {
 			return fmt.Errorf("generateKey: %w", err)
 		}
+	case "gentoken":
+		genTokenCommand := flag.NewFlagSet("gentoken", flag.ExitOnError)
+		userID := genTokenCommand.String("userid", "", "id of the user that token will belong.")
+		kid := genTokenCommand.String("kid", "", "ID of the private key used to sign the token.")
+		keyPath := genTokenCommand.String("keypath", "infra/keys", "path to the dir the holds private and public key pairs.")
+
+		genTokenCommand.Parse(os.Args[2:])
+
+		if *userID == "" || *kid == "" {
+			fmt.Println("Usage: gentoken kid=<key id> userid=<user id> [keypath=<path to keys folder>]")
+			return errors.New("kid and userid are required")
+		}
+
+		if err := commands.GenerateToken(*keyPath, *userID, *kid); err != nil {
+			fmt.Println("Usage: gentoken kid=<key id> userid=<user id> [keypath=<path to keys folder>]")
+			return fmt.Errorf("generate token: %w", err)
+		}
+
 	default:
 		return fmt.Errorf("unknown command %q", os.Args[1])
 	}

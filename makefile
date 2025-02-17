@@ -23,6 +23,9 @@ tidy:
 key-gen:
 	go run cmd/admin/main.go genkey -size=2048
 
+token-gen:
+	go run cmd/admin/main.go gentoken -kid=c3550713-13e7-4a53-977a-dd53cbcb7088 -keypath=infra/keys -userid=random_user
+
 ################################################################################
 
 sales:
