@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/hamidoujand/sales/internal/auth"
 )
 
@@ -32,8 +33,6 @@ func TestAuth(t *testing.T) {
 		t.Fatalf("failed to generate token: %s", err)
 	}
 
-	t.Logf("Token: %s\n", token)
-
 	bearer := "Bearer " + token
 
 	parsedClaims, err := a.Authenticate(context.Background(), bearer)
@@ -41,7 +40,9 @@ func TestAuth(t *testing.T) {
 		t.Fatalf("failed to authenticate token: %s", err)
 	}
 
-	t.Logf("%+v\n", parsedClaims)
+	if parsedClaims.Issuer != c.Issuer {
+		t.Errorf("issuer= %s, got %s", c.Issuer, parsedClaims.Issuer)
+	}
 }
 
 type mockStore struct {
@@ -70,4 +71,70 @@ func (ms *mockStore) PrivateKey(kid string) (*rsa.PrivateKey, error) {
 func (ms *mockStore) PublicKey(kid string) (*rsa.PublicKey, error) {
 	k := ms.store[kid].PublicKey
 	return &k, nil
+}
+
+func TestAuthorization(t *testing.T) {
+	issuer := "auth-service"
+	s := newMockStore(t)
+	a := auth.New(s, jwt.SigningMethodRS256, issuer)
+
+	tests := map[string]struct {
+		claims     auth.Claims
+		rule       string
+		userId     string
+		shouldFail bool
+	}{
+		"admin claims": {
+			claims: auth.Claims{
+				Roles: []string{"ADMIN"},
+				RegisteredClaims: jwt.RegisteredClaims{
+					Issuer: issuer,
+				},
+			},
+			rule:       auth.RuleAdmin,
+			shouldFail: false,
+			userId:     uuid.NewString(),
+		},
+
+		"user claim": {
+			claims: auth.Claims{
+				Roles: []string{"USER"},
+				RegisteredClaims: jwt.RegisteredClaims{
+					Issuer: issuer,
+				},
+			},
+			rule:       auth.RuleUser,
+			userId:     uuid.NewString(),
+			shouldFail: false,
+		},
+
+		"user accessing admin rule": {
+			claims: auth.Claims{
+				Roles: []string{"USER"},
+				RegisteredClaims: jwt.RegisteredClaims{
+					Issuer:  issuer,
+					Subject: uuid.NewString(),
+				},
+			},
+			rule:       auth.RuleAdmin,
+			userId:     uuid.NewString(),
+			shouldFail: true,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := a.Authorize(context.Background(), test.claims, test.userId, test.rule)
+			if !test.shouldFail {
+				if err != nil {
+					t.Fatalf("failed to authorized with valid claims: %s", err)
+				}
+			} else {
+				//we expected to fail
+				if err == nil {
+					t.Fatal("expected test to fail")
+				}
+			}
+		})
+	}
 }

@@ -14,11 +14,19 @@ import (
 	"github.com/open-policy-agent/opa/v1/rego"
 )
 
-const regoPackageName = "token_validation"
+const (
+	RuleAnybody      = "rule_any"
+	RuleAdmin        = "rule_admin_only"
+	RuleUser         = "rule_user_only"
+	RuleAdminOrOwner = "rule_admin_or_owner"
+)
 
 var (
 	//go:embed rego/authentication.rego
 	regoAuthentication string
+
+	//go:embed rego/authorization.rego
+	regoAuthorization string
 )
 
 // KeyLookup defines the required behavior in order to get private and public keys for JWT token operations.
@@ -67,6 +75,8 @@ func (a *Auth) GenerateToken(kid string, claims Claims) (string, error) {
 }
 
 func (a *Auth) Authenticate(ctx context.Context, bearerToken string) (Claims, error) {
+	const regoPackageName = "token_validation"
+
 	if !strings.HasPrefix(bearerToken, "Bearer ") {
 		return Claims{}, errors.New("expected Authorization header to be in this format: Bearer <TOKEN>")
 	}
@@ -137,4 +147,40 @@ func (a *Auth) Authenticate(ctx context.Context, bearerToken string) (Claims, er
 		return Claims{}, errors.New("access denied by policy")
 	}
 	return claims, nil
+}
+
+func (a *Auth) Authorize(ctx context.Context, claims Claims, userId string, rule string) error {
+	const regoPackageName = "role_validation"
+
+	input := map[string]any{
+		"roles":   claims.Roles,
+		"subject": claims.Subject,
+		"userId":  userId,
+	}
+
+	q := fmt.Sprintf("x = data.%s.%s", regoPackageName, rule)
+	query, err := rego.New(
+		rego.Query(q),
+		rego.Module("policy.rego", regoAuthorization),
+	).PrepareForEval(ctx)
+
+	if err != nil {
+		return fmt.Errorf("prepare for eval: %w", err)
+	}
+
+	results, err := query.Eval(ctx, rego.EvalInput(input))
+	if err != nil {
+		return fmt.Errorf("eval: %w", err)
+	}
+
+	if len(results) == 0 || len(results[0].Bindings) == 0 {
+		return fmt.Errorf("no policy decision")
+	}
+
+	result, ok := results[0].Bindings["x"].(bool)
+	if !result || !ok {
+		return fmt.Errorf("access denied by policy")
+	}
+
+	return nil
 }
