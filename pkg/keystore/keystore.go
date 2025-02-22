@@ -26,7 +26,7 @@ func New() *KeyStore {
 	}
 }
 
-func (ks *KeyStore) LoadKeys(fsys fs.FS) error {
+func (ks *KeyStore) LoadKeys(fsys fs.FS) (string, error) {
 
 	//Example: c3550713-13e7-4a53-977a-dd53cbcb7088-private.pem
 	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
@@ -74,10 +74,20 @@ func (ks *KeyStore) LoadKeys(fsys fs.FS) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("walkdir: %w", err)
+		return "", fmt.Errorf("walkdir: %w", err)
 	}
 
-	return nil
+	//find the active key
+	activeKID, err := fsys.Open("active.txt")
+	if err != nil {
+		return "", fmt.Errorf("opening active kid file: %w", err)
+	}
+	kid, err := io.ReadAll(activeKID)
+	if err != nil {
+		return "", fmt.Errorf("readAll: %w", err)
+	}
+
+	return string(kid), nil
 }
 
 func (ks *KeyStore) PrivateKey(kid string) (*rsa.PrivateKey, error) {

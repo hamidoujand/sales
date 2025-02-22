@@ -26,7 +26,7 @@ func GenerateKey(keysize int) error {
 	}
 
 	//create folder keys if not already
-	if err := os.MkdirAll("infra/keys", 0755); err != nil {
+	if err := os.Mkdir("keys", 0755); err != nil {
 		if !os.IsExist(err) {
 			return fmt.Errorf("creating keys folder: %w", err)
 		}
@@ -34,7 +34,7 @@ func GenerateKey(keysize int) error {
 
 	//create the key file
 	keyID := uuid.NewString()
-	filepath := "infra/keys/" + keyID + "-private.pem"
+	filepath := "keys/" + keyID + "-private.pem"
 
 	file, err := os.Create(filepath)
 	if err != nil {
@@ -51,7 +51,7 @@ func GenerateKey(keysize int) error {
 		return fmt.Errorf("marshalling public key into DER: %w", err)
 	}
 
-	filepath = "infra/keys/" + keyID + "-public.pem"
+	filepath = "keys/" + keyID + "-public.pem"
 
 	publicFile, err := os.Create(filepath)
 	if err != nil {
@@ -66,6 +66,12 @@ func GenerateKey(keysize int) error {
 
 	if err := pem.Encode(publicFile, &publicBlock); err != nil {
 		return fmt.Errorf("encoding public key into pem: %w", err)
+	}
+
+	//make this key as active key
+	activeKeyFilePath := "keys/active.txt"
+	if err := os.WriteFile(activeKeyFilePath, []byte(keyID), 0644); err != nil {
+		return fmt.Errorf("write active key file: %w", err)
 	}
 
 	fmt.Println("private and public key files generated")

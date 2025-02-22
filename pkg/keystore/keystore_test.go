@@ -43,17 +43,24 @@ func TestKeyStore(t *testing.T) {
 	file := fstest.MapFile{
 		Data: []byte(privatePEM),
 	}
+	activeFile := fstest.MapFile{
+		Data: []byte(kid),
+	}
 
 	fs := fstest.MapFS{
-		filename: &file,
+		filename:     &file,
+		"active.txt": &activeFile,
 	}
 
 	ks := keystore.New()
-	if err := ks.LoadKeys(fs); err != nil {
+	activeKID, err := ks.LoadKeys(fs)
+	if err != nil {
 		t.Fatalf("failed to load files: %s", err)
 	}
-
-	_, err := ks.PrivateKey(kid)
+	if activeKID != kid {
+		t.Errorf("activeKID=%s, got %s", kid, activeKID)
+	}
+	_, err = ks.PrivateKey(kid)
 	if err != nil {
 		t.Fatalf("failed to get private key: %s", err)
 	}
