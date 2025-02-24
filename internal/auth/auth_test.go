@@ -17,7 +17,7 @@ const kid = "key-id"
 func TestAuth(t *testing.T) {
 	issuer := "auth-service"
 	s := newMockStore(t)
-	a := auth.New(s, jwt.SigningMethodRS256, issuer)
+	a := auth.New(s, jwt.SigningMethodRS256, issuer, kid)
 
 	c := auth.Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -28,7 +28,7 @@ func TestAuth(t *testing.T) {
 		},
 		Roles: []string{"admin"},
 	}
-	token, err := a.GenerateToken(kid, c)
+	token, err := a.GenerateToken(c)
 	if err != nil {
 		t.Fatalf("failed to generate token: %s", err)
 	}
@@ -76,7 +76,7 @@ func (ms *mockStore) PublicKey(kid string) (*rsa.PublicKey, error) {
 func TestAuthorization(t *testing.T) {
 	issuer := "auth-service"
 	s := newMockStore(t)
-	a := auth.New(s, jwt.SigningMethodRS256, issuer)
+	a := auth.New(s, jwt.SigningMethodRS256, issuer, kid)
 
 	tests := map[string]struct {
 		claims     auth.Claims
@@ -109,6 +109,19 @@ func TestAuthorization(t *testing.T) {
 		},
 
 		"user accessing admin rule": {
+			claims: auth.Claims{
+				Roles: []string{"USER"},
+				RegisteredClaims: jwt.RegisteredClaims{
+					Issuer:  issuer,
+					Subject: uuid.NewString(),
+				},
+			},
+			rule:       auth.RuleAdmin,
+			userId:     uuid.NewString(),
+			shouldFail: true,
+		},
+
+		"admin accessing user only rule": {
 			claims: auth.Claims{
 				Roles: []string{"USER"},
 				RegisteredClaims: jwt.RegisteredClaims{

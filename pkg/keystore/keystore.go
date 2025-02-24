@@ -44,6 +44,11 @@ func (ks *KeyStore) LoadKeys(fsys fs.FS) (string, error) {
 			return nil
 		}
 
+		//skip the public ones
+		if strings.HasSuffix(path, "-public.pem") {
+			return nil
+		}
+
 		//get the kid
 		kid := strings.TrimSuffix(d.Name(), "-private.pem")
 
@@ -56,9 +61,8 @@ func (ks *KeyStore) LoadKeys(fsys fs.FS) (string, error) {
 		//limit the read till 1MB
 		bs, err := io.ReadAll(io.LimitReader(file, 1024*1024))
 		if err != nil {
-			return fmt.Errorf("reading key file %s: %w", path, err)
+			// 	return fmt.Errorf("reading key file %s: %w", path, err)
 		}
-
 		block, _ := pem.Decode(bs)
 		if block == nil {
 			return fmt.Errorf("invalid pem data")
@@ -68,7 +72,6 @@ func (ks *KeyStore) LoadKeys(fsys fs.FS) (string, error) {
 		if err != nil {
 			return fmt.Errorf("parsing private key: %w", err)
 		}
-
 		ks.store[kid] = privateKey
 		return nil
 	})

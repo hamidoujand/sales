@@ -16,8 +16,11 @@ import (
 	"time"
 
 	"github.com/ardanlabs/conf/v3"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/hamidoujand/sales/api/handlers"
+	"github.com/hamidoujand/sales/internal/auth"
 	"github.com/hamidoujand/sales/internal/debug"
+	"github.com/hamidoujand/sales/pkg/keystore"
 )
 
 var build = "development"
@@ -44,6 +47,12 @@ func run(logger *slog.Logger) error {
 			APIHost         string        `conf:"default:0.0.0.0:8000"`
 			DebugHost       string        `conf:"default:0.0.0.0:3000"`
 		}
+
+		Auth struct {
+			KeysDir       string `conf:"default:keys"`
+			SigningMethod string `conf:"default:RS256"`
+			Issuer        string `conf:"default:auth-service"`
+		}
 	}{}
 
 	help, err := conf.Parse("SALES", &cfg)
@@ -63,7 +72,7 @@ func run(logger *slog.Logger) error {
 
 	confString, err := conf.String(&cfg)
 	if err != nil {
-		return fmt.Errorf("string: %w", err)
+		return fmt.Errorf("starting: %w", err)
 	}
 
 	logger.Info("startup", "configuration", confString)
@@ -79,12 +88,21 @@ func run(logger *slog.Logger) error {
 	}()
 
 	//==========================================================================
+	// Auth init
+	ks := keystore.New()
+	activeKid, err := ks.LoadKeys(os.DirFS(cfg.Auth.KeysDir))
+	if err != nil {
+		return fmt.Errorf("loading keys into key store: %w", err)
+	}
+	authClient := auth.New(ks, jwt.GetSigningMethod(cfg.Auth.SigningMethod), cfg.Auth.Issuer, activeKid)
+	logger.Info("auth", "activeKID", activeKid)
+	//==========================================================================
 	// API server
 	shutdown := make(chan os.Signal, 1)
 	errCh := make(chan error, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	mux := handlers.APIMux(logger)
+	mux := handlers.APIMux(logger, authClient)
 
 	server := &http.Server{
 		Addr:        cfg.Web.APIHost,

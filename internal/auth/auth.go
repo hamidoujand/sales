@@ -14,6 +14,10 @@ import (
 	"github.com/open-policy-agent/opa/v1/rego"
 )
 
+var (
+	ErrUnauthenticated = errors.New("request does not have valid authentication credentials for the operation")
+)
+
 const (
 	RuleAnybody      = "rule_any"
 	RuleAdmin        = "rule_admin_only"
@@ -44,24 +48,28 @@ type Auth struct {
 	store         KeyLookup
 	signingMethod jwt.SigningMethod
 	issuer        string
+	activeKID     string
 }
 
-func New(keyLookup KeyLookup, signingMethod jwt.SigningMethod, issuer string) *Auth {
+func New(keyLookup KeyLookup, signingMethod jwt.SigningMethod, issuer string, activeKid string) *Auth {
 	a := Auth{
 		store:         keyLookup,
 		signingMethod: signingMethod,
 		issuer:        issuer,
+		activeKID:     activeKid,
 	}
 	return &a
 }
 
 // GenerateToken generates a jwt token based on the given claims.
-func (a *Auth) GenerateToken(kid string, claims Claims) (string, error) {
+func (a *Auth) GenerateToken(claims Claims) (string, error) {
+	claims.RegisteredClaims.Issuer = a.issuer
+
 	token := jwt.NewWithClaims(a.signingMethod, claims)
-	token.Header["kid"] = kid
+	token.Header["kid"] = a.activeKID
 
 	//load the key
-	privateKey, err := a.store.PrivateKey(kid)
+	privateKey, err := a.store.PrivateKey(a.activeKID)
 	if err != nil {
 		return "", fmt.Errorf("looking up private key: %w", err)
 	}

@@ -12,9 +12,24 @@ spec:
       labels:
         app: sales
     spec:
+      volumes:
+        - name: keys-volume
+          emptyDir: {}
+      initContainers:
+        - name: generate-keys
+          image: sales:0.0.1
+          command: ["./admin", "genkey"]
+          args: ["-size=2048"]
+          volumeMounts:
+            - name: keys-volume
+              mountPath: /services/keys
       containers:
         - name: sales
           image: sales:0.0.1
+          volumeMounts:
+            - name: keys-volume
+              mountPath: /services/keys
+
           resources:
             requests:
               memory: "100Mi"
