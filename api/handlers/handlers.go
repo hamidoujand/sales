@@ -1,17 +1,17 @@
 package handlers
 
 import (
-	"context"
 	"log/slog"
-	"math/rand/v2"
 	"net/http"
 
+	"github.com/hamidoujand/sales/api/handlers/health"
 	"github.com/hamidoujand/sales/internal/auth"
 	"github.com/hamidoujand/sales/internal/mid"
 	"github.com/hamidoujand/sales/internal/web"
+	"github.com/jmoiron/sqlx"
 )
 
-func APIMux(logger *slog.Logger, authClient *auth.Auth) *web.Router {
+func APIMux(build string, logger *slog.Logger, db *sqlx.DB, authClient *auth.Auth) *web.Router {
 	const version = "v1"
 	mux := web.NewRouter(logger,
 		mid.Logger(logger),
@@ -20,27 +20,14 @@ func APIMux(logger *slog.Logger, authClient *auth.Auth) *web.Router {
 		mid.Panic(),
 	)
 
-	mux.HandleFunc(http.MethodGet, version, "/test/", testHandler)
-	mux.HandleFunc(http.MethodGet, version, "/authtest/", testAuthHandler, mid.Authenticate(authClient), mid.Authorize(authClient, auth.RuleAdmin))
+	//health handlers
+	hh := health.Handler{
+		DB:    db,
+		Build: build,
+	}
+
+	mux.HandleFuncNoMid(http.MethodGet, version, "/readiness", hh.Readiness)
+	mux.HandleFuncNoMid(http.MethodGet, version, "/liveness", hh.Liveness)
+
 	return mux
-}
-
-func testHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	if rand.Int()%2 == 0 {
-		//produce a dum error
-		panic("something bad happened")
-	}
-	msg := map[string]string{
-		"msg": "Hello World!",
-	}
-
-	return web.Respond(ctx, w, http.StatusOK, msg)
-}
-
-func testAuthHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	msg := map[string]string{
-		"msg": "Auth successful",
-	}
-
-	return web.Respond(ctx, w, http.StatusOK, msg)
 }

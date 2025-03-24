@@ -49,3 +49,22 @@ func (r *Router) HandleFunc(method string, version string, path string, handlerF
 	pattern = fmt.Sprintf("%s %s", method, pattern)
 	r.ServeMux.HandleFunc(pattern, h)
 }
+
+// HandleFuncNoMid is going to be used for routes like liveness and readiness that we do not want to go through middleware
+// stack open telemetry.
+func (r *Router) HandleFuncNoMid(method string, version string, path string, handlerFunc HandlerFunc) {
+	h := func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		if err := handlerFunc(ctx, w, req); err != nil {
+			r.log.Error("router", "status", "handlerFuncNoMid", "err", err)
+			return
+		}
+	}
+
+	pattern := path
+	if version != "" {
+		pattern = "/" + version + path
+	}
+	pattern = fmt.Sprintf("%s %s", method, pattern)
+	r.ServeMux.HandleFunc(pattern, h)
+}

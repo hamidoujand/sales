@@ -1,5 +1,7 @@
 NAMESPACE := sales-system
 VERSION := 0.0.1
+COMPOSE_FILE := infra/compose/docker-compose.yaml
+
 ################################################################################
 run-dev:
 	go run cmd/sales/main.go
@@ -38,15 +40,21 @@ sales:
 
 apply:
 	kubectl apply -f infra/k8s/base/namespace.yaml
+	kubectl apply -f infra/k8s/database/database.yaml 
+	kubectl rollout status --namespace=$(NAMESPACE) --watch --timeout=120s sts/database
 	kubectl apply -f infra/k8s/sales/sales-deploy.yaml
 	
 
 delete:
-	kubectl delete -f infra/k8s/sales/sales-deploy.yaml	
+	kubectl delete -f infra/k8s/sales/sales-deploy.yaml
+	kubectl delete -f infra/k8s/database/database.yaml	
 	kubectl delete -f infra/k8s/base/namespace.yaml
 
-restart:
+restart-sales:
 	kubectl rollout restart deployment sales-deployment --namespace=$(NAMESPACE) 
+
+restart-database:
+	kubectl rollout restart statefulset database --namespace=$(NAMESPACE)
 
 status:
 	kubectl get pods --namespace=$(NAMESPACE) --watch -o wide
@@ -54,9 +62,26 @@ status:
 logs-sales:
 	kubectl logs --namespace=$(NAMESPACE) -l app=sales --all-containers=true -f --tail=100 --max-log-requests=6 
 
+logs-database:
+	kubectl logs --namespace=$(NAMESPACE) -l app=database --all-containers=true -f --tail=100
+
 describe-sales-deployment:
 	kubectl describe deployment --namespace=$(NAMESPACE) sales-deployment
 
 describe-sales-pods:
 	kubectl describe pod --namespace=$(NAMESPACE) -l app=sales
 
+describe-database:
+	kubectl describe pod --namespace=$(NAMESPACE) -l app=database
+
+
+#-----------------------------------------------------------------------------------------------------------------------
+# compose
+compose-up:
+	docker-compose -f $(COMPOSE_FILE) up -d
+compose-down:
+	docker-compose -f $(COMPOSE_FILE) down
+
+compose-build: build compose-up
+compose-logs:
+	docker-compose -f $(COMPOSE_FILE) logs -f

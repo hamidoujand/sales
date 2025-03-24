@@ -1,0 +1,63 @@
+services:
+  database:
+      image: postgres:17.2
+      container_name: database
+      ports:
+        - "5432:5432"
+      environment:
+        - "POSTGRES_PASSWORD=password"
+        - "POSTGRES_DB=postgres"
+        - "POSTGRES_USER=postgres"
+      volumes:
+        - ./database-data:/var/lib/postgresql/data
+      healthcheck:
+        test: ["CMD-SHELL","pg_isready -h localhost -U postgres",]
+        interval: 10s
+        timeout: 10s
+        retries: 5
+        start_period: 30s
+      cpu_count: 2
+
+  init-key-genration:
+    image: sales:0.0.1
+    pull_policy: never
+    container_name: init-key-generation
+    restart: "no"
+    entrypoint: ["./admin","genkey","-size=2048"]
+    volumes:
+      - key-store:/services/keys
+    depends_on:
+      - database
+
+
+  sales:
+      image: sales:0.0.1
+      pull_policy: never
+      container_name: sales
+      restart: unless-stopped
+      ports:
+        - "8000:8000"
+        - "3000:3000"
+      environment:
+        - GOMAXPROCS=1
+        - SALES_DB_USER=postgres
+        - SALES_DB_PASSWORD=postgres
+        - SALES_DB_HOST=database
+        - SALES_DB_DISABLE_TLS=true
+
+      healthcheck:
+        test: [ "CMD-SHELL", "wget -qO- http://localhost:8000/v1/liveness || exit 1" ]
+        interval: 5s
+        timeout: 5s
+        retries: 2
+        start_period: 2s
+      volumes:
+        - key-store:/services/keys
+      depends_on:
+        - init-key-genration
+
+
+
+
+volumes:
+  key-store: {}

@@ -20,8 +20,7 @@ func TestDatabaseConn(t *testing.T) {
 		t.Fatalf("failed to start postgres container: %s", err)
 	}
 
-	defer docker.StopContainer(c.Name)
-
+	defer func() { _ = docker.StopContainer(c.Name) }()
 	cfg := Config{
 		Host:       c.HostPort,
 		User:       "postgres",
@@ -34,7 +33,7 @@ func TestDatabaseConn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open a conn: %s", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	//status
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)

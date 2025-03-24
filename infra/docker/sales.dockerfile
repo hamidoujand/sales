@@ -1,4 +1,4 @@
-FROM golang:1.23.0 AS build_sales
+FROM golang:1.24 AS build_sales
 ENV CGO_ENABLED=0
 ARG BUILD_REF
 

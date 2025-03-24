@@ -20,6 +20,7 @@ import (
 	"github.com/hamidoujand/sales/api/handlers"
 	"github.com/hamidoujand/sales/internal/auth"
 	"github.com/hamidoujand/sales/internal/debug"
+	"github.com/hamidoujand/sales/internal/sqldb"
 	"github.com/hamidoujand/sales/pkg/keystore"
 )
 
@@ -52,6 +53,16 @@ func run(logger *slog.Logger) error {
 			KeysDir       string `conf:"default:keys"`
 			SigningMethod string `conf:"default:RS256"`
 			Issuer        string `conf:"default:auth-service"`
+		}
+
+		DB struct {
+			User         string `conf:"default:postgres"`
+			Password     string `conf:"default:password,mask"`
+			Host         string `conf:"default:database-service"`
+			Name         string `conf:"default:postgres"`
+			MaxIdleConns int    `conf:"default:0"`
+			MaxOpenConns int    `conf:"default:0"`
+			DisableTLS   bool   `conf:"default:true"`
 		}
 	}{}
 
@@ -96,13 +107,35 @@ func run(logger *slog.Logger) error {
 	}
 	authClient := auth.New(ks, jwt.GetSigningMethod(cfg.Auth.SigningMethod), cfg.Auth.Issuer, activeKid)
 	logger.Info("auth", "activeKID", activeKid)
+
+	//==========================================================================
+	// Database
+
+	logger.Info("startup", "status", "init database support", "host", cfg.DB.Host)
+
+	db, err := sqldb.Open(sqldb.Config{
+		Host:         cfg.DB.Host,
+		User:         cfg.DB.User,
+		Password:     cfg.DB.Password,
+		Name:         cfg.DB.Name,
+		MaxIdleConns: cfg.DB.MaxIdleConns,
+		MaxOpenConns: cfg.DB.MaxOpenConns,
+		DisableTLS:   cfg.DB.DisableTLS,
+	})
+
+	if err != nil {
+		return fmt.Errorf("open database conn: %w", err)
+	}
+
+	defer db.Close()
+
 	//==========================================================================
 	// API server
 	shutdown := make(chan os.Signal, 1)
 	errCh := make(chan error, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	mux := handlers.APIMux(logger, authClient)
+	mux := handlers.APIMux(build, logger, db, authClient)
 
 	server := &http.Server{
 		Addr:        cfg.Web.APIHost,
