@@ -40,6 +40,20 @@ func Newf(code int, format string, args ...any) *Error {
 	}
 }
 
+func NewValidation(code int, fields map[string]string, msg string) *Error {
+	pc, filename, line, _ := runtime.Caller(1)
+	file := fmt.Sprintf("%s:%d", filename, line)
+	funcName := runtime.FuncForPC(pc).Name()
+
+	return &Error{
+		Code:     code,
+		Message:  msg,
+		Filename: file,
+		FuncName: funcName,
+		Fields:   fields,
+	}
+}
+
 func (e *Error) Error() string {
 	return e.Message
 }

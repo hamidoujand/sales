@@ -101,7 +101,7 @@ func TestAuthenticate(t *testing.T) {
 
 			if !test.expectErr {
 				if err != nil {
-					t.Fatalf("failed to authenticate user: %s", err)
+					t.Fatalf("failed to authenticate userbus: %s", err)
 				}
 			} else {
 				if err == nil {

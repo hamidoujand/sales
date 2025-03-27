@@ -60,4 +60,8 @@ services:
 
 
 volumes:
-  key-store: {}
+  key-store: {
+        driver_opts:
+          o: uid=$(id -u)
+             gid=$(id -g)
+  }

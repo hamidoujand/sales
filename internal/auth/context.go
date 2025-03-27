@@ -24,7 +24,7 @@ func SetClaims(ctx context.Context, claims Claims) context.Context {
 func GetUserID(ctx context.Context) (uuid.UUID, error) {
 	userId, ok := ctx.Value(userIdKey).(uuid.UUID)
 	if !ok {
-		return uuid.Nil, fmt.Errorf("user id not found in the context")
+		return uuid.Nil, fmt.Errorf("userbus id not found in the context")
 	}
 
 	return userId, nil

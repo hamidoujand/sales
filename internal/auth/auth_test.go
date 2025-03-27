@@ -96,7 +96,7 @@ func TestAuthorization(t *testing.T) {
 			userId:     uuid.NewString(),
 		},
 
-		"user claim": {
+		"userbus claim": {
 			claims: auth.Claims{
 				Roles: []string{"USER"},
 				RegisteredClaims: jwt.RegisteredClaims{
@@ -108,7 +108,7 @@ func TestAuthorization(t *testing.T) {
 			shouldFail: false,
 		},
 
-		"user accessing admin rule": {
+		"userbus accessing admin rule": {
 			claims: auth.Claims{
 				Roles: []string{"USER"},
 				RegisteredClaims: jwt.RegisteredClaims{
@@ -121,7 +121,7 @@ func TestAuthorization(t *testing.T) {
 			shouldFail: true,
 		},
 
-		"admin accessing user only rule": {
+		"admin accessing userbus only rule": {
 			claims: auth.Claims{
 				Roles: []string{"USER"},
 				RegisteredClaims: jwt.RegisteredClaims{

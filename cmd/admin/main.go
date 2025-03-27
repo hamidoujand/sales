@@ -37,19 +37,19 @@ func run() error {
 		}
 	case "gentoken":
 		genTokenCommand := flag.NewFlagSet("gentoken", flag.ExitOnError)
-		userID := genTokenCommand.String("userid", "", "id of the user that token will belong.")
+		userID := genTokenCommand.String("userid", "", "id of the userbus that token will belong.")
 		kid := genTokenCommand.String("kid", "", "ID of the private key used to sign the token.")
 		keyPath := genTokenCommand.String("keypath", "infra/keys", "path to the dir the holds private and public key pairs.")
 
 		genTokenCommand.Parse(os.Args[2:])
 
 		if *userID == "" || *kid == "" {
-			fmt.Println("Usage: gentoken kid=<key id> userid=<user id> [keypath=<path to keys folder>]")
+			fmt.Println("Usage: gentoken kid=<key id> userid=<userbus id> [keypath=<path to keys folder>]")
 			return errors.New("kid and userid are required")
 		}
 
 		if err := commands.GenerateToken(*keyPath, *userID, *kid); err != nil {
-			fmt.Println("Usage: gentoken kid=<key id> userid=<user id> [keypath=<path to keys folder>]")
+			fmt.Println("Usage: gentoken kid=<key id> userid=<userbus id> [keypath=<path to keys folder>]")
 			return fmt.Errorf("generate token: %w", err)
 		}
 
