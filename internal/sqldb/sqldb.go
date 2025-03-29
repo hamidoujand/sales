@@ -2,13 +2,21 @@ package sqldb
 
 import (
 	"context"
+	"embed"
+	"errors"
 	"fmt"
 	"net/url"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 )
+
+//go:embed sql/*.sql
+var migrationFiles embed.FS
 
 type Config struct {
 	Host         string
@@ -80,6 +88,29 @@ func StatusCheck(ctx context.Context, db *sqlx.DB) error {
 	var result bool
 	if err := db.QueryRowContext(ctx, "SELECT true;").Scan(&result); err != nil {
 		return fmt.Errorf("queryRowContext: %w", err)
+	}
+
+	return nil
+}
+
+func Migrate(ctx context.Context, db *sqlx.DB, dbname string) error {
+	dirver, err := postgres.WithInstance(db.DB, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("creating postgres driver: %w", err)
+	}
+
+	src, err := iofs.New(migrationFiles, "sql") //prefix of the path: ie: "sql/init.sql"
+	if err != nil {
+		return fmt.Errorf("creating an iofs source: %w", err)
+	}
+
+	m, err := migrate.NewWithInstance("iofs", src, dbname, dirver)
+	if err != nil {
+		return fmt.Errorf("creating a migrate instance: %w", err)
+	}
+
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("migration up: %w", err)
 	}
 
 	return nil

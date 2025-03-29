@@ -1,3 +1,4 @@
+version: "3.8"
 services:
   database:
       image: postgres:17.2
@@ -16,18 +17,33 @@ services:
         timeout: 10s
         retries: 5
         start_period: 30s
-      cpu_count: 2
+      cpu_count: 1
 
-  init-key-genration:
+  init-key-generation:
     image: sales:0.0.1
     pull_policy: never
     container_name: init-key-generation
     restart: "no"
     entrypoint: ["./admin","genkey","-size=2048"]
     volumes:
-      - key-store:/services/keys
+      - type: bind
+        source: ./database-data 
+        target: /services/keys
+        volume:
+          nocopy: true
     depends_on:
-      - database
+      database:
+           condition: service_healthy
+
+  init-migration:
+    image: sales:0.0.1
+    pull_policy: never
+    container_name: init-migration 
+    restart: "no" 
+    entrypoint: ["./admin","migrate","-user=postgres","-pass=password","-host=database","-dbname=postgres"]
+    depends_on:
+      database:
+        condition: service_healthy
 
 
   sales:
@@ -52,16 +68,20 @@ services:
         retries: 2
         start_period: 2s
       volumes:
-        - key-store:/services/keys
+        - type: bind
+          source: ./database-data
+          target: /services/keys
       depends_on:
-        - init-key-genration
+        database:
+          condition: service_healthy
+        init-key-generation:
+          condition: service_completed_successfully
+        init-migration:
+          condition: service_completed_successfully
 
 
 
 
-volumes:
-  key-store: {
-        driver_opts:
-          o: uid=$(id -u)
-             gid=$(id -g)
-  }
+
+
+

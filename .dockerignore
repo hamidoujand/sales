@@ -2,3 +2,4 @@
 .dockerignore
 infra/docker/
 makefile
+infra/compose/database-data
