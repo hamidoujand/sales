@@ -11,8 +11,15 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
+)
+
+const uniqueViolationCode = "23505"
+
+var (
+	ErrDuplicatedEntry = errors.New("duplicated entry")
 )
 
 //go:embed sql/*.sql
@@ -113,5 +120,18 @@ func Migrate(ctx context.Context, db *sqlx.DB, dbname string) error {
 		return fmt.Errorf("migration up: %w", err)
 	}
 
+	return nil
+}
+
+func NamedExecContext(ctx context.Context, db *sqlx.DB, query string, data any) error {
+	if _, err := db.NamedExecContext(ctx, query, data); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == uniqueViolationCode {
+				return ErrDuplicatedEntry
+			}
+		}
+		return fmt.Errorf("namedExecContext: %w", err)
+	}
 	return nil
 }

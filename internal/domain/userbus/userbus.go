@@ -15,7 +15,8 @@ import (
 )
 
 var (
-	ErrUserNotFound = errors.New("user not found")
+	ErrUserNotFound    = errors.New("user not found")
+	ErrDuplicatedEmail = errors.New("email is not unique")
 )
 
 // storer represents the required behavior from the storage engine.
